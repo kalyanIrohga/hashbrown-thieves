@@ -359,8 +359,13 @@ function updateGame() {
         size: random(6, 14)
     });
     }
-    if (frameCount % 12 === 0) {
-        potatoSteam.push({x: width*0.6 + random(10, 60), y: height*0.41, vy: random(-0.3, -0.8), alpha: 100});
+    let isUltimate = (currentLevel === 4 && hashBrownsCount >= config.target - 2);
+    if (frameCount % (isUltimate ? 5 : 12) === 0) {
+        if (isUltimate) {
+            potatoSteam.push({x: width*0.6 + random(0, 70), y: height*0.40, vy: random(-0.7, -1.5), alpha: 160, size: random(13, 24)});
+        } else {
+            potatoSteam.push({x: width*0.6 + random(10, 60), y: height*0.41, vy: random(-0.3, -0.8), alpha: 100, size: random(5, 8)});
+        }
     }
 
     for (let i = ambientSteam.length - 1; i >= 0; i--) {
@@ -645,8 +650,9 @@ function drawGame() {
     }
 
     for (let ps of potatoSteam) {
-        fill(255, 183, 77, ps.alpha);
-        ellipse(ps.x, ps.y, 6, 12);
+        let sz = ps.size || 6;
+        fill(255, 200, 110, ps.alpha);
+        ellipse(ps.x, ps.y, sz, sz * 1.7);
     }
 
     // 以下代码保持原样不变
@@ -658,9 +664,64 @@ function drawGame() {
     noStroke();
     
     if (currentLevel === 4 && hashBrownsCount >= config.target - 2) {
-        fill('#e65100'); ellipse(35, -5, 62, 24);
-        fill('#fffbca'); ellipse(35, -5, 54, 16);
-        fill('#e65100'); textSize(10); text("👑终极巨饼", 35, -3);
+        // ===== 终极大薯饼：金光射线 + 立体多层 + 皇冠 + 闪烁星粒 =====
+        push();
+        translate(35, -8);   // 篮子中央上方
+
+        // 1. 旋转 + 呼吸闪烁的金色光芒射线（在薯饼后面）
+        push();
+        rotate(frameCount * 0.01);
+        let rayPulse = 0.6 + 0.4 * sin(frameCount * 0.08);
+        for (let i = 0; i < 12; i++) {
+            rotate(TWO_PI / 12);
+            let len = 48 + sin(frameCount * 0.15 + i) * 12;
+            fill(255, 223, 120, 75 * rayPulse);
+            triangle(0, 0, -4, -len, 4, -len);
+        }
+        pop();
+
+        // 2. 柔和金色光晕
+        fill(255, 210, 90, 55);  ellipse(0, 2, 100, 62);
+        fill(255, 230, 140, 65); ellipse(0, 2, 72, 46);
+
+        // 3. 薯饼本体：多层叠色做出体积感 + 高光
+        fill('#8a3b0a'); ellipse(0, 9, 90, 36);   // 底部焦边（暗）
+        fill('#c85a12'); ellipse(0, 6, 86, 33);   // 外圈焦黄
+        fill('#e8791b'); ellipse(0, 3, 76, 29);   // 主体橙
+        fill('#ffb74d'); ellipse(0, -1, 62, 23);  // 上层亮黄
+        fill('#ffe082'); ellipse(0, -4, 44, 15);  // 高光黄
+        fill(255, 255, 255, 120); ellipse(-11, -7, 20, 6); // 顶部反光
+
+        // 4. 表面焦斑颗粒
+        fill('#a84a0e');
+        ellipse(-17, 4, 5, 3); ellipse(13, 7, 6, 3); ellipse(2, 9, 4, 2); ellipse(22, 1, 4, 2);
+
+        // 5. 皇冠
+        push(); translate(0, -24); fill('#ffd835');
+        beginShape();
+        vertex(-15, 7); vertex(-15, -4); vertex(-7, 3); vertex(0, -9);
+        vertex(7, 3); vertex(15, -4); vertex(15, 7);
+        endShape(CLOSE);
+        fill('#fff3b0'); ellipse(-15, -4, 5, 5); ellipse(0, -9, 5, 5); ellipse(15, -4, 5, 5);
+        pop();
+
+        // 6. 四周漂浮 + 闪烁的金色星粒
+        for (let i = 0; i < 8; i++) {
+            let a = frameCount * 0.02 + i * (TWO_PI / 8);
+            let rr = 42 + sin(frameCount * 0.05 + i * 1.7) * 12;
+            let sx = cos(a) * rr * 1.3;
+            let sy = sin(a) * rr * 0.7 - 4;
+            let tw = 0.5 + 0.5 * sin(frameCount * 0.2 + i * 2);
+            fill(255, 240, 170, 210 * tw);
+            push(); translate(sx, sy);
+            let sz = 3 + tw * 3;
+            triangle(0, -sz, -sz * 0.35, 0, sz * 0.35, 0);
+            triangle(0, sz, -sz * 0.35, 0, sz * 0.35, 0);
+            triangle(-sz, 0, 0, -sz * 0.35, 0, sz * 0.35);
+            triangle(sz, 0, 0, -sz * 0.35, 0, sz * 0.35);
+            pop();
+        }
+        pop();
     } else {
         fill('#e65100'); ellipse(35, 2, 52, 16); 
         fill('#ffb74d'); ellipse(35, -1, 48, 14); 
