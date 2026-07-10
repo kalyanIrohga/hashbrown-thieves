@@ -48,6 +48,7 @@ let basketShakeTimer = 0;
 let showLevel2Guide = false;
 
 let bgPotatoes = [];
+let canvasEl = null;   // DOM canvas 引用，用于把触摸坐标换算成画布坐标
 
 let farmerState = "COOKING"; 
 let farmerTimer = 180;         
@@ -222,7 +223,8 @@ function setup() {
     let canvasWidth = windowWidth;
     let canvasHeight = windowHeight;
     if (canvasWidth > 500) canvasWidth = 430; 
-    createCanvas(canvasWidth, canvasHeight);
+    let cnv = createCanvas(canvasWidth, canvasHeight);
+    canvasEl = cnv.elt;   // 保存真实 canvas 节点
     
     if(!localStorage.getItem("marten_bear_max_level")) {
         localStorage.setItem("marten_bear_max_level", 1);
@@ -790,8 +792,25 @@ function drawGame() {
     text(`🥔 x ${hashBrownsCount} / ${config.target}`, 25, 40);
     textSize(11); textStyle(NORMAL); fill('#ffe082'); text(config.name, 25, 66);
     
-    textAlign(CENTER, CENTER); fill('rgba(255,255,255,0.15)'); ellipse(width - 40, 40, 36, 36);
-    fill('#fff'); textSize(18); text("⚙️", width - 40, 40);
+    // 设置按钮：背景圆 + 矢量齿轮（与圆用同一原点，永远居中对齐，不受 emoji 渲染差异影响）
+    push();
+    let gx = width - 40, gy = 40;
+    noStroke();
+    fill('rgba(255,255,255,0.15)');
+    ellipse(gx, gy, 36, 36);
+    translate(gx, gy);
+    rectMode(CENTER);
+    fill('#ffffff');
+    for (let i = 0; i < 8; i++) {   // 8 个齿
+        push();
+        rotate((TWO_PI / 8) * i);
+        rect(0, -10, 4, 6, 1);
+        pop();
+    }
+    ellipse(0, 0, 16, 16);          // 齿轮主体
+    fill('#3a221d');
+    ellipse(0, 0, 6, 6);            // 中心孔
+    pop();
 }
 
 function drawStoryScreen() {
@@ -963,10 +982,10 @@ function drawGameClearScreen() {
     fill('#fff'); text("回主界面", width * 0.5, height * 0.72);
 }
 
-function mousePressed() {
+function handleTap(px, py) {
     if (currentScreen === "STORY") {
         let btnX = width * 0.5; let btnY = height * 0.84;
-        if (mouseX > btnX - 75 && mouseX < btnX + 75 && mouseY > btnY - 22 && mouseY < btnY + 22) {
+        if (px > btnX - 75 && px < btnX + 75 && py > btnY - 22 && py < btnY + 22) {
             if (storyIndex < storyDialogues.length - 1) {
                 storyIndex++; startStoryLine();
             } else {
@@ -977,36 +996,36 @@ function mousePressed() {
     }
     if (showLevel2Guide) {
         let btnX = width * 0.5; let btnY = height * 0.5 + 138;
-        if (mouseX > btnX - 65 && mouseX < btnX + 65 && mouseY > btnY - 20 && mouseY < btnY + 20) {
+        if (px > btnX - 65 && px < btnX + 65 && py > btnY - 20 && py < btnY + 20) {
             showLevel2Guide = false;
         } return;
     }
     if (currentScreen === "HOME") {
-        if (mouseX > width*0.5 - 90 && mouseX < width*0.5 + 90) {
-            if (mouseY > height*0.5 - 25 && mouseY < height*0.5 + 25) {
+        if (px > width*0.5 - 90 && px < width*0.5 + 90) {
+            if (py > height*0.5 - 25 && py < height*0.5 + 25) {
                 initLevel(currentLevel);
-            } else if (mouseY > height*0.63 - 25 && mouseY < height*0.63 + 25) {
+            } else if (py > height*0.63 - 25 && py < height*0.63 + 25) {
                 currentScreen = "LEVEL_SELECT";
             }
         } return;
     }
     if (currentScreen === "LEVEL_SELECT") {
-        if (mouseX > 20 && mouseX < 120 && mouseY > 25 && mouseY < 60) {
+        if (px > 20 && px < 120 && py > 25 && py < 60) {
             currentScreen = "HOME"; return;
         }
         for (let i = 1; i <= 4; i++) {
             let btnY = height * 0.22 + (i - 1) * 82;
-            if (i <= maxUnlockedLevel && mouseX > width*0.15 && mouseX < width*0.85 && mouseY > btnY && mouseY < btnY + 60) {
+            if (i <= maxUnlockedLevel && px > width*0.15 && px < width*0.85 && py > btnY && py < btnY + 60) {
                 initLevel(i); break;
             }
         } return;
     }
     if (currentScreen === "PLAYING") {
-        if (mouseX > width - 60 && mouseX < width - 20 && mouseY > 20 && mouseY < 60) {
+        if (px > width - 60 && px < width - 20 && py > 20 && py < 60) {
             currentScreen = "PAUSE"; return;
         }
         
-        if (currentTurn === "BEAR" && playerActionState !== "EATING" && playerActionState !== "RETRACTING" && mouseY > 80) {
+        if (currentTurn === "BEAR" && playerActionState !== "EATING" && playerActionState !== "RETRACTING" && py > 80) {
             isStealing = true;
             stealProgress += 8.5; 
         }
@@ -1014,7 +1033,7 @@ function mousePressed() {
     if (currentScreen === "PAUSE") {
         for (let i = 0; i < 4; i++) {
             let bY = height * 0.38 + i * 65;
-            if (mouseX > width * 0.2 && mouseX < width * 0.8 && mouseY > bY && mouseY < bY + 45) {
+            if (px > width * 0.2 && px < width * 0.8 && py > bY && py < bY + 45) {
                 if (i === 0) currentScreen = "PLAYING";
                 else if (i === 1) initLevel(currentLevel);
                 else if (i === 2) currentScreen = "LEVEL_SELECT";
@@ -1025,25 +1044,55 @@ function mousePressed() {
     }
     if (currentScreen === "GAMEOVER") {
         let btnY = height * 0.74;
-        if (mouseX > width*0.5 - 70 && mouseX < width*0.5 + 70 && mouseY > btnY - 25 && mouseY < btnY + 25) {
+        if (px > width*0.5 - 70 && px < width*0.5 + 70 && py > btnY - 25 && py < btnY + 25) {
             initLevel(currentLevel);
         } return;
     }
     if (currentScreen === "WIN_LEVEL") {
-        if (mouseX > width*0.5 - 80 && mouseX < width*0.5 + 80) {
-            if (mouseY > height*0.58 - 25 && mouseY < height*0.58 + 25) {
+        if (px > width*0.5 - 80 && px < width*0.5 + 80) {
+            if (py > height*0.58 - 25 && py < height*0.58 + 25) {
                 currentLevel++; initLevel(currentLevel);
-            } else if (mouseY > height*0.7 - 25 && mouseY < height*0.7 + 25) {
+            } else if (py > height*0.7 - 25 && py < height*0.7 + 25) {
                 currentScreen = "LEVEL_SELECT";
             }
         } return;
     }
     if (currentScreen === "GAME_CLEAR") {
         let btnY = height * 0.72;
-        if (mouseX > width*0.5 - 80 && mouseX < width*0.5 + 80 && mouseY > btnY - 25 && mouseY < btnY + 25) {
+        if (px > width*0.5 - 80 && px < width*0.5 + 80 && py > btnY - 25 && py < btnY + 25) {
             currentLevel = 1; currentScreen = "HOME";
         } return;
     }
+}
+
+// 鼠标（桌面）：用 p5 的 mouseX/mouseY
+function mousePressed() {
+    handleTap(mouseX, mouseY);
+}
+
+// 从触摸事件直接取坐标，换算成画布内坐标（绕开 p5 坐标延迟导致的“要点两下”）
+function getTouchPos(e) {
+    let t = null;
+    if (e && e.touches && e.touches.length) t = e.touches[0];
+    else if (e && e.changedTouches && e.changedTouches.length) t = e.changedTouches[0];
+    if (t && canvasEl) {
+        let r = canvasEl.getBoundingClientRect();
+        return { x: t.clientX - r.left, y: t.clientY - r.top };
+    }
+    return { x: mouseX, y: mouseY };
+}
+
+// 触摸（手机）：用触摸事件的真实坐标，并阻止浏览器默认行为（滚动/缩放/下拉刷新/合成鼠标事件）
+function touchStarted(e) {
+    let p = getTouchPos(e);
+    handleTap(p.x, p.y);
+    return false;
+}
+function touchMoved() {
+    return false;   // 按住偷饼时手指微动，不让页面滚动
+}
+function touchEnded() {
+    return false;
 }
 
 function saveProgress(nextLvl) {
