@@ -11,7 +11,6 @@
 玩法、角色和关卡都是我自己设计的，程序部分用 p5.js，和 Codex、Claude 一起完成，部署在 GitHub Pages 上。
 最近正在整理美术设计文件、制作 Rive 动画。
 
-先把薯饼吃上，漂亮的事儿 下一步再说。
 
 
 点开即玩：https://kalyanirohga.github.io/hashbrown-thieves/
